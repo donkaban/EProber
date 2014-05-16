@@ -142,7 +142,7 @@ void initGL_es()
         EGL_RENDERABLE_TYPE,    EGL_OPENGL_ES2_BIT, 
         EGL_NONE
     };
-    egl_display   = eglGetDisplay((EGLNativeDisplayType)display); 
+    egl_display   = eglGetDisplay(EGL_DEFAULT_DISPLAY); 
     egl_window    = (EGLNativeWindowType) window;
     if(
         (!eglInitialize(egl_display, &majorVersion, &minorVersion)) || 
@@ -229,7 +229,7 @@ void pollX11events()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const float vertex[] = 
+static const float vertex[] = 
 {
  // x      y    z     w         s     t       u     v
   -1.0f, 1.0f, 0.0f, 1.0f    , 1.0f, 1.0f, 0.0f, 0.0f,
@@ -238,7 +238,7 @@ const float vertex[] =
    1.0f, 1.0f, 0.0f, 1.0f    , 0.0f, 1.0f, 0.0f, 0.0f
 };
 
-const uint16 ndx[] = {0,1,2,2,3,0};
+static const uint8_t ndx[] = {0,1,2,2,3,0};
 GLuint id[2];
 GLuint mat;
 const char *v_src = R"(
@@ -279,8 +279,9 @@ void init_draw()
     LOG("Init Draw ... ")
 	glGenBuffers(2, id);
 	glBindBuffer(GL_ARRAY_BUFFER, id[0]);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,id[1]);
+
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex),vertex,GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,id[1]);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ndx), ndx,GL_STATIC_DRAW);
 	auto v_shader = glCreateShader(GL_VERTEX_SHADER);    
 	auto f_shader = glCreateShader(GL_FRAGMENT_SHADER);  
@@ -297,7 +298,7 @@ void init_draw()
    
 }
 
-static const auto SIZE = sizeof(ndx)/sizeof(uint16);
+static const auto SIZE = sizeof(ndx)/sizeof(uint8_t);
 
 void draw()
 {
@@ -308,11 +309,12 @@ void draw()
     c1 = glGetUniformLocation(mat,"color1");
     c2 = glGetUniformLocation(mat,"color2");
     glBindBuffer(GL_ARRAY_BUFFER,id[0]);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,id[1]);
     glVertexAttribPointer(glGetAttribLocation(mat,"position"), 4 ,GL_FLOAT, GL_FALSE, sizeof(vertex) / 4 , (const void *) 0);
     glVertexAttribPointer(glGetAttribLocation(mat,"texcoord"), 4, GL_FLOAT, GL_FALSE, sizeof(vertex) / 4,  (const void *) (sizeof(float) * 4));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,id[1]);
+   
     _checkGL();
 
     LOG("      GET TIME\n");
@@ -324,7 +326,7 @@ void draw()
     LOG("      DRAWELEMENTS ") LOG(SIZE) LOG(" \n")
     glFlush();
     glFinish();
-    glDrawElements(GL_TRIANGLES,SIZE ,GL_UNSIGNED_SHORT,0);  
+    glDrawElements(GL_TRIANGLES,SIZE ,GL_UNSIGNED_BYTE,(const void *) 0);  
     glFlush();
     glFinish();
 
@@ -347,12 +349,11 @@ void update()
         LOG("   CLEAR\n")
         glClear(GL_COLOR_BUFFER_BIT);
         LOG("   DRAW\n") 
-        if(!eglWaitClient()) LOG("+++++++++++++++++++++ WAIT CLIENT PRE ERROR! +++++++++++++++++++++++\n");
         if(!glIsProgram(mat))  LOG("+++++++++++++++++++++ PROGRAMM DROPPED ERROR! +++++++++++++++++++++++\n");
         draw();
-        if(!eglWaitClient()) LOG("+++++++++++++++++++++ WAIT CLIENT POST ERROR! +++++++++++++++++++++++\n");
         LOG("   SWAP") LOG(std::endl)
-        eglSwapBuffers(egl_display, egl_surface);
+        if(eglSwapBuffers(egl_display, egl_surface) == EGL_FALSE)
+            LOG("+++++++++++++++++++++ SWAP ERROR! +++++++++++++++++++++++\n");
         _checkEGL();
         LOG("OK\n")
     }
