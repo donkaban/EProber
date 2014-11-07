@@ -17,15 +17,6 @@
 #include <signal.h>
 #include <thread>
 
-#define SIZE_ASSERT(T, size) static_assert((sizeof(T) == size),"static alert : size mismatch!")
-
-typedef signed   char       int8;    SIZE_ASSERT(int8,  1);
-typedef unsigned char       uint8;   SIZE_ASSERT(uint8, 1);
-typedef signed   short int  int16;   SIZE_ASSERT(int16, 2);
-typedef unsigned short int  uint16;  SIZE_ASSERT(uint16,2);
-typedef signed   int  		int32;   SIZE_ASSERT(int32, 4);
-typedef unsigned int  		uint32;  SIZE_ASSERT(uint32,4);
-
 
 uint _width  = 0;
 uint _height = 0;
@@ -142,7 +133,7 @@ void initGL_es()
         EGL_RENDERABLE_TYPE,    EGL_OPENGL_ES2_BIT, 
         EGL_NONE
     };
-    egl_display   = eglGetDisplay(EGL_DEFAULT_DISPLAY); 
+    egl_display   = eglGetDisplay((EGLNativeDisplayType)display); 
     egl_window    = (EGLNativeWindowType) window;
     if(
         (!eglInitialize(egl_display, &majorVersion, &minorVersion)) || 
@@ -151,9 +142,20 @@ void initGL_es()
         (!eglChooseConfig(egl_display, attr, &egl_config, 1, &numConfigs)))
         _checkEGL(); 
    
+    LOG("... PASS 1...")
+   
     egl_surface = eglCreateWindowSurface(egl_display, egl_config, egl_window, NULL);         _checkEGL();
+    
+    LOG("...PASS 2...")
+  
     egl_context = eglCreateContext(egl_display, egl_config, EGL_NO_CONTEXT, contextAttribs); _checkEGL();
+    
+    LOG("...PASS 3...")
+  
     if(!eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context))                  _checkEGL();
+    
+    LOG("...PASS 4...")
+  
     DONE
  
 }
@@ -163,12 +165,8 @@ void close()
     eglDestroyContext(egl_display, egl_context);
     XDestroyWindow(display,window);
     if(visual) delete visual;
-    //if(display) XCloseDisplay(display);
     DONE
 }
-
-
-
 
 
 void init(uint w, uint h)
@@ -179,7 +177,7 @@ void init(uint w, uint h)
     initX11_mini();
     initGL_es(); 
     glViewport(0, 0, static_cast<GLsizei>(_width), static_cast<GLsizei>(_height));
-    glClearColor(.2, .2, .5, 0);
+    glClearColor(.3, .3, .5, 0);
     LOG(_getGLInfo());
 }
 
@@ -192,22 +190,20 @@ bool done = false;
 
 void pollX11events()
 {
-        LOG("   POLL X11\n")
         XEvent evt;
         auto pending =  XPending(display);
-        if(pending > 0)  LOG("      EVT:  ") 
         for (int i = 0; i < pending; i++)
         { 
             XNextEvent(display, &evt);
             switch (evt.type)
             {
                 case ButtonPress:
-                    LOG("+ press! ");
+                    LOG("event : press! \n");
                     
                     break;
                 case MotionNotify:
                 {
-                    LOG("+ move! ");
+                    LOG("event : move! \n");
                     auto event = (XMotionEvent *) &evt;
                     col1 = (float)event->x/_width;
                     col2 = (float)event->y/_height;
@@ -215,15 +211,12 @@ void pollX11events()
                     break;
                 }
                 case ButtonRelease :
-                    LOG("+ release! ");
+                    LOG("event : release! \n");
           
                 default:
                     break;
             }
         }
-        LOG("   POLL X11 SYNC\n")
-        XSync(display, True);
-        LOG("   POLL X11 DONE\n")
     }
 
 
@@ -300,62 +293,54 @@ void init_draw()
 
 static const auto SIZE = sizeof(ndx)/sizeof(uint8_t);
 
-void draw()
-{
-    LOG("      SETUP\n");
-
-    glUseProgram(mat);
-    t = glGetUniformLocation(mat,"time");
-    c1 = glGetUniformLocation(mat,"color1");
-    c2 = glGetUniformLocation(mat,"color2");
-    glBindBuffer(GL_ARRAY_BUFFER,id[0]);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,id[1]);
-    glVertexAttribPointer(glGetAttribLocation(mat,"position"), 4 ,GL_FLOAT, GL_FALSE, sizeof(vertex) / 4 , (const void *) 0);
-    glVertexAttribPointer(glGetAttribLocation(mat,"texcoord"), 4, GL_FLOAT, GL_FALSE, sizeof(vertex) / 4,  (const void *) (sizeof(float) * 4));
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
+// void draw()
+// {
+ 
+//     glUseProgram(mat);
+//     t = glGetUniformLocation(mat,"time");
+//     c1 = glGetUniformLocation(mat,"color1");
+//     c2 = glGetUniformLocation(mat,"color2");
+//     glBindBuffer(GL_ARRAY_BUFFER,id[0]);
+//     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,id[1]);
+//     glVertexAttribPointer(glGetAttribLocation(mat,"position"), 4 ,GL_FLOAT, GL_FALSE, sizeof(vertex) / 4 , (const void *) 0);
+//     glVertexAttribPointer(glGetAttribLocation(mat,"texcoord"), 4, GL_FLOAT, GL_FALSE, sizeof(vertex) / 4,  (const void *) (sizeof(float) * 4));
+//     glEnableVertexAttribArray(0);
+//     glEnableVertexAttribArray(1);
    
-    _checkGL();
+//     _checkGL();
 
-    LOG("      GET TIME\n");
-    std::chrono::duration<float> dt = std::chrono::system_clock::now() - start;
-    LOG("      SET UNIFORMS\n");
-    glUniform1f(t, fmod(dt.count(),3.14));
-    glUniform1f(c1, col1);
-    glUniform1f(c2, col2);
-    LOG("      DRAWELEMENTS ") LOG(SIZE) LOG(" \n")
-    glFlush();
-    glFinish();
-    glDrawElements(GL_TRIANGLES,SIZE ,GL_UNSIGNED_BYTE,(const void *) 0);  
-    glFlush();
-    glFinish();
+//     LOG("      GET TIME\n");
+//     std::chrono::duration<float> dt = std::chrono::system_clock::now() - start;
+//     LOG("      SET UNIFORMS\n");
+//     glUniform1f(t, fmod(dt.count(),3.14));
+//     glUniform1f(c1, col1);
+//     glUniform1f(c2, col2);
+//     LOG("      DRAWELEMENTS ") LOG(SIZE) LOG(" \n")
+//     glFlush();
+//     glFinish();
+//     glDrawElements(GL_TRIANGLES,SIZE ,GL_UNSIGNED_BYTE,(const void *) 0);  
+//     glFlush();
+//     glFinish();
 
-    LOG("      DRAWELEMENTS DONE\n");
-   _checkGL();
+//     LOG("      DRAWELEMENTS DONE\n");
+//    _checkGL();
  
    
-}
+// }
+
+
 
 void update()
 {
-    long i = 0;
     while(!done)
     {   
-        LOG("FRAME")
-        std::chrono::duration<float> dt = std::chrono::system_clock::now() - start;
-        LOG(" # ") LOG (i++) LOG(" TIME: ") LOG (dt.count()) LOG (" sec.\n") 
         pollX11events();
-        
-        LOG("   CLEAR\n")
-        glClear(GL_COLOR_BUFFER_BIT);
-        LOG("   DRAW\n") 
-        if(!glIsProgram(mat))  LOG("+++++++++++++++++++++ PROGRAMM DROPPED ERROR! +++++++++++++++++++++++\n");
-        draw();
-        LOG("   SWAP") LOG(std::endl)
-        if(eglSwapBuffers(egl_display, egl_surface) == EGL_FALSE)
-            LOG("+++++++++++++++++++++ SWAP ERROR! +++++++++++++++++++++++\n");
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+       // draw();
+       // eglSwapBuffers(egl_display, egl_surface);
         _checkEGL();
-        LOG("OK\n")
+        _checkGL();
+         
     }
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -365,7 +350,7 @@ int main()
 {
     
 	   init(800,480);
-	   init_draw();
+	   //init_draw();
  	   update();
        
     return 0;
