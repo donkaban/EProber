@@ -1,5 +1,5 @@
 
-HOST 	= LINUX
+HOST 	= ARM
 API  	= OPENGLES2
 TARGET	= ./xtest
 
@@ -11,7 +11,7 @@ HEADERS =
 # -------------------------------------------------------------------------------------------
 
 LINUX_CXX = g++
-ARM_CXX   = arm-g++
+ARM_CXX   = arm-angstrom-linux-gnueabi-g++
 
 COMMON_CXX_FLAGS = -DAPI_$(API) -DHOST_$(HOST) 
 

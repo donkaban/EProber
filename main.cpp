@@ -23,8 +23,8 @@ EGLContext          egl_context;
 EGLSurface          egl_surface;
 EGLConfig           egl_config;
 
-float pos_x = 0.5f;
-float pos_y = 0.5f;
+
+#define FATAL(msg) {std::cout << "\nERROR : " << msg << std::endl; exit(-1);}
 
 void _checkEGL()  
 {
@@ -45,53 +45,16 @@ void _checkGL()
     }    
 }
 
-int getInt(const GLenum &e) {GLint val = 0; glGetIntegerv(e, &val); return val;}
-#define GET_INT(e) {std::cout << #e  << ": " << getInt(e) << std::endl;} 
-#define GET_STR(e) {std::cout << #e  << ": " << glGetString(e) << std::endl;} 
-
-void _getGLInfo()
-{
-    GET_STR(GL_VENDOR); 
-    GET_STR(GL_VERSION); 
-    GET_STR(GL_RENDERER);  
-    GET_STR(GL_SHADING_LANGUAGE_VERSION); 
-    GET_INT(GL_SHADER_COMPILER);
-    GET_INT(GL_ALPHA_BITS);
-    GET_INT(GL_DEPTH_BITS);
-    GET_INT(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS);
-    GET_INT(GL_MAX_TEXTURE_IMAGE_UNITS);
-    GET_INT(GL_MAX_TEXTURE_SIZE);
-    GET_INT(GL_MAX_CUBE_MAP_TEXTURE_SIZE);
-    GET_INT(GL_NUM_COMPRESSED_TEXTURE_FORMATS);
-    GET_INT(GL_NUM_SHADER_BINARY_FORMATS);
-    GET_INT(GL_PACK_ALIGNMENT);
-    GET_INT(GL_SAMPLE_BUFFERS);
-    GET_INT(GL_MAX_RENDERBUFFER_SIZE);
-    GET_INT(GL_MAX_VARYING_VECTORS); 
-    GET_INT(GL_MAX_VERTEX_ATTRIBS);
-    GET_INT(GL_MAX_VERTEX_UNIFORM_VECTORS);
-    GET_INT(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS);
-    GET_INT(GL_MAX_VIEWPORT_DIMS);
-   std::cout << "Ext:\n" << glGetString(GL_EXTENSIONS) << std::endl; 
-}
-
-#define FATAL(msg) {std::cout << "\nERROR : " << msg << std::endl; exit(-1);}
-#define LOG(msg)   std::cout << msg;
-#define DONE  std::cout << "DONE" << std::endl;
-
-
 Bool waitMapping(Display *, XEvent *e, char *arg )
 {
-    LOG("WAIT FOR MAPPING ")
     return (e->type == MapNotify) && (e->xmap.window == (Window)arg);
 }
 
 
 void initX11_mini()
 {
-    LOG("Init X11 system ... ")
-    XEvent                  event;
-   
+    std::cout << "Init X11..." << std::endl;
+    XEvent event;
     display = XOpenDisplay(NULL);
     if(!display) FATAL("can't open X11 display");
     
@@ -111,15 +74,12 @@ void initX11_mini()
     XIfEvent(display, &event, waitMapping, (char*)window );
     XSetInputFocus(display,window, RevertToNone, CurrentTime);
     XFlush(display);
-    DONE
-
 }
 void initGL_es()
 {
-    LOG("Init EGL ... ")
-   
+    std::cout << "Init GLES..." << std::endl;
+  
     EGLint contextAttribs[] = {EGL_CONTEXT_CLIENT_VERSION, 2,EGL_NONE, EGL_NONE };
-    
     EGLint numConfigs;
     EGLint majorVersion;
     EGLint minorVersion;
@@ -150,7 +110,6 @@ void initGL_es()
 }
 void close()
 {
-    LOG("Close all ...")
     eglDestroyContext(egl_display, egl_context);
     XDestroyWindow(display,window);
     if(visual) delete visual;
@@ -159,47 +118,45 @@ void close()
 
 void init(uint w, uint h)
 {
-    LOG("Init...\n")
+    std::cout << "Init..." << std::endl;
     _width = w;
     _height = h;
     initX11_mini();
     initGL_es(); 
     glViewport(0, 0, static_cast<GLsizei>(_width), static_cast<GLsizei>(_height));
     glClearColor(.3, .3, .5, 0);
-    _getGLInfo();
 }
 
 void draw();
 
 bool done = false;
+float pos_x = 0.5f;
+float pos_y = 0.5f;
+
 void pollX11events()
 {
         XEvent evt;
-        for (int i = 0; i < XPending(display); i++)
+        while(XPending(display) > 0 )
         { 
             XNextEvent(display, &evt);
             switch (evt.type)
             {
                 case ButtonPress:
                 {
-                    LOG("event : touch! \n");
                     XButtonEvent * event = (XButtonEvent *) &evt;
+                    std::cout << "touch: " << event->x << ", " << event->y << std::endl;
                     pos_x = ((float)event->x/_width) ;
                     pos_y = ((float)event->y/_height);
                     break;
                 }
                 case MotionNotify:
                 {
-                    LOG("event : move! \n");
                     XMotionEvent * event = (XMotionEvent *) &evt;
+                    std::cout << "move: " << event->x << ", " << event->y << std::endl;
                     pos_x = ((float)event->x/_width);
                     pos_y = ((float)event->y/_height);
-                    std::cout << "pos: " << pos_x << ", " << pos_y << "\n";
                     break;
                 }
-                case ButtonRelease :
-                    LOG("event : release! \n");
-          
                 default:
                     break;
             }
@@ -225,7 +182,8 @@ GLuint t,p;
 
 void init_draw()
 {
-    LOG("Init Draw ... ")
+    std::cout << "InitDraw..." << std::endl;
+  
 	glGenBuffers(2, id);
 	glBindBuffer(GL_ARRAY_BUFFER, id[0]);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,id[1]);
@@ -242,6 +200,13 @@ void init_draw()
 	glAttachShader(mat, f_shader);
 	glLinkProgram(mat);
     
+  
+ }
+
+float fake_time = 0.0;
+void draw()
+{
+    fake_time += 0.03;
     glBindBuffer(GL_ARRAY_BUFFER,id[0]);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,id[1]);
     glVertexAttribPointer(glGetAttribLocation(mat,"pos"), 4 ,GL_FLOAT, GL_FALSE, sizeof(vertex) / 4 , (const void *) 0);
@@ -252,12 +217,6 @@ void init_draw()
     glUseProgram(mat);
     t = glGetUniformLocation(mat,"t");
     p = glGetUniformLocation(mat,"p");
- }
-
-float fake_time = 0.0;
-void draw()
-{
-    fake_time += 0.01;
     glUniform1f(t, fake_time);
     glUniform2f(p, pos_x, pos_y);
     glDrawElements(GL_TRIANGLES,sizeof(ndx)/sizeof(unsigned char) ,GL_UNSIGNED_BYTE,(const void *) 0);  
